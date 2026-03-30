@@ -136,6 +136,41 @@ revealEls.forEach((el, i) => {
   revealObserver.observe(el);
 });
 
+function animateStatCounters() {
+  const statEls = document.querySelectorAll('.num-value');
+  statEls.forEach(el => {
+    const target = parseInt(el.dataset.target, 10) || 0;
+    if (target <= 0 || el.dataset.animated === 'true') return;
+    el.dataset.animated = 'true';
+
+    let current = 0;
+    const interval = 200;
+    const duration = 4000;
+    const step = Math.max(1, Math.ceil(target / (duration / interval)));
+
+    const timer = setInterval(() => {
+      current += step;
+      if (current >= target) {
+        el.textContent = target;
+        clearInterval(timer);
+      } else {
+        el.textContent = current;
+      }
+    }, interval);
+  });
+}
+
+const aboutStats = document.querySelector('.about-stats');
+if (aboutStats) {
+  const statsObserver = new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting) {
+      animateStatCounters();
+      statsObserver.unobserve(entries[0].target);
+    }
+  }, { threshold: 0.25 });
+  statsObserver.observe(aboutStats);
+}
+
 // Also trigger skill bars when skill section is in view
 const skillSection = document.getElementById('skills');
 const skillObserver = new IntersectionObserver(entries => {
@@ -218,20 +253,6 @@ filterBtns.forEach(btn => {
       }
     });
   });
-});
-
-// ── CONTACT FORM ──
-const contactForm = document.getElementById('contactForm');
-contactForm?.addEventListener('submit', e => {
-  e.preventDefault();
-  const btn = contactForm.querySelector('button[type="submit"]');
-  btn.textContent = '✓ Message sent!';
-  btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-  setTimeout(() => {
-    btn.textContent = 'Send Message ↗';
-    btn.style.background = '';
-    contactForm.reset();
-  }, 3000);
 });
 
 // ── SMOOTH SCROLL ──
