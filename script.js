@@ -1,4 +1,4 @@
-/* ===== PORTFOLIO SCRIPT — Fobah N'gouan Salomon ===== */
+/* ===== PORTFOLIO SCRIPT — ===== */
 
 // ── THEME ──
 const THEME_KEY = 'fns-theme';
