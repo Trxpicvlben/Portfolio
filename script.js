@@ -97,7 +97,7 @@ function animateCursor() {
 }
 animateCursor();
 
-document.querySelectorAll('a, button, .tech-pill, .filter-btn, .project-card').forEach(el => {
+document.querySelectorAll('a, button, .tech-pill, .filter-btn, .project-card, .cert-card[data-link]').forEach(el => {
   el.addEventListener('mouseenter', () => {
     cursor.style.width = '48px';
     cursor.style.height = '48px';
@@ -108,6 +108,23 @@ document.querySelectorAll('a, button, .tech-pill, .filter-btn, .project-card').f
     cursor.style.width = '32px';
     cursor.style.height = '32px';
     cursor.style.background = 'transparent';
+  });
+});
+
+document.querySelectorAll('.cert-card[data-link]').forEach(card => {
+  const openLink = () => {
+    const url = card.dataset.link;
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  card.addEventListener('click', openLink);
+  card.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openLink();
+    }
   });
 });
 

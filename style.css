@@ -575,6 +575,9 @@ body.light .header.scrolled { background: rgba(240,240,255,0.95); }
   padding:20px; display:flex; align-items:center; gap:16px;
   position:relative;
 }
+.cert-card[data-link] {
+  cursor:pointer;
+}
 
 .cert-logo {
   width:44px; height:44px; border-radius:10px;
