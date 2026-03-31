@@ -322,3 +322,234 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
     }
   });
 });
+
+
+// ══ LIQUID GLASS BOTTOM NAV ══
+// Apple iOS 26 Design Language
+//
+// Logique :
+//   • 4 tabs visibles en permanence dans le conteneur
+//   • La BULLE (.lg-bubble) se déplace entre les 4 slots (position 0–3)
+//     via `left` en CSS — transition spring (morphing)
+//   • Le ROW (.lg-tabs) se translate pour révéler tabs 5-7 quand nécessaire
+//   • Pendant le drag : bulle suit le doigt en temps réel (no transition)
+//     + row scroll si on pousse vers les bords
+//   • Au relâchement : snap spring vers le tab le plus proche
+//
+// Formules clés :
+//   TW = wrap.width / 4         (largeur d'un tab)
+//   viewStart = premier index visible (0 par défaut)
+//   bubbleSlot = activeIdx - viewStart  (0..3, slot visuel de la bulle)
+//   bubbleLeft = bubbleSlot * TW + PADD
+//   tabsTranslateX = -viewStart * TW
+
+(function () {
+  const nav    = document.getElementById('lgNav');
+  const glass  = document.getElementById('lgGlass');
+  const bubble = document.getElementById('lgBubble');
+  const tabRow = document.getElementById('lgTabs');
+  if (!nav || !glass || !bubble || !tabRow) return;
+
+  const tabs    = Array.from(tabRow.querySelectorAll('.lg-tab[data-section]'));
+  const N       = tabs.length;   // 7
+  const VISIBLE = 4;
+  const PADD    = 4;             // padding intérieur de la bulle
+
+  function TW() { return glass.offsetWidth / VISIBLE; }
+
+  let activeIdx  = 1;   // tab actuellement actif au démarrage : About
+  let viewStart  = 0;   // premier tab visible dans le conteneur
+
+  /* ── Active class ── */
+  function setActive(i) {
+    activeIdx = Math.max(0, Math.min(N - 1, Math.round(i)));
+    tabs.forEach((t, j) => t.classList.toggle('active', j === activeIdx));
+    // Fade droit : masquer si dernier tab visible
+    glass.classList.toggle('at-end', viewStart + VISIBLE >= N);
+  }
+
+  function showSection(idx, instant = false) {
+    const href = tabs[idx]?.getAttribute('href');
+    const sec = href ? document.querySelector(href) : null;
+    if (!sec) return;
+    sec.scrollIntoView({ behavior: instant ? 'auto' : 'smooth' });
+  }
+
+  /* ── Calcule viewStart optimal pour un activeIdx donné ──
+     La bulle doit rester dans les slots 0..3.
+     On essaie de garder viewStart stable, on l'ajuste seulement
+     si le tab actif sort de la vue.
+  ── */
+  function computeViewStart(idx, currentVS) {
+    let vs = currentVS;
+    if (idx < vs)                vs = idx;
+    if (idx > vs + VISIBLE - 1)  vs = idx - (VISIBLE - 1);
+    return Math.max(0, Math.min(N - VISIBLE, vs));
+  }
+
+  /* ── Rendu complet (bubble + row) ──
+     floatIdx : index flottant (actif ou intermédiaire pendant drag)
+     floatVS  : viewStart flottant
+     animated : activer la transition spring (faux pendant drag)
+  ── */
+  function render(floatIdx, floatVS, animated) {
+    const tw   = TW();
+    // Slot visuel de la bulle = distance entre le tab et le bord gauche du conteneur
+    const slot = floatIdx - floatVS;
+
+    // Bulle
+    if (animated) {
+      bubble.classList.remove('dragging');
+    } else {
+      bubble.classList.add('dragging');
+    }
+    bubble.style.left  = (slot * tw + PADD) + 'px';
+    bubble.style.width = (tw - PADD * 2) + 'px';
+
+    // Row des tabs
+    tabRow.style.transition = animated
+      ? 'transform .38s cubic-bezier(.4,0,.2,1)'
+      : 'none';
+    tabRow.style.transform = `translateX(${-floatVS * tw}px)`;
+  }
+
+  /* ── Snap : finalise sur un index précis avec animation ── */
+  function snapTo(floatIdx, animated) {
+    const idx = Math.max(0, Math.min(N - 1, Math.round(floatIdx)));
+    viewStart = computeViewStart(idx, viewStart);
+    setActive(idx);
+    render(idx, viewStart, animated);
+
+    // Navigation vers la section
+    if (animated) {
+      const href = tabs[idx].getAttribute('href');
+      const sec  = document.querySelector(href);
+      if (sec) sec.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+
+  /* ════ GESTION DU DRAG ════ */
+  let tx0 = 0, ty0 = 0;
+  let ai0 = 0, vs0 = 0;
+  let isDragging = false, isLocked = false;
+
+  function dragStart(cx, cy) {
+    tx0 = cx; ty0 = cy;
+    ai0 = activeIdx; vs0 = viewStart;
+    isDragging = false; isLocked = false;
+    // Couper immédiatement les transitions pour le drag
+    bubble.classList.add('dragging');
+    tabRow.style.transition = 'none';
+  }
+
+  function dragMove(cx, cy) {
+    const dx = cx - tx0;
+    const dy = cy - ty0;
+
+    // Détecter si c'est un scroll vertical (laisser la page scroller)
+    if (!isDragging && !isLocked) {
+      if (Math.abs(dy) > Math.abs(dx) + 6) { isLocked = true; return false; }
+      if (Math.abs(dx) > 3) isDragging = true;
+    }
+    if (isLocked || !isDragging) return false;
+
+    // floatIdx : index flottant du tab "actif" en temps réel
+    // swipe droite (dx > 0) → tabs suivants → floatIdx monte
+    const raw       = ai0 + dx / TW();
+    const floatIdx  = Math.max(0, Math.min(N - 1, raw));
+    const liveIdx   = Math.round(floatIdx);
+
+    // viewStart s'adapte si on pousse aux extrémités
+    const floatVS   = computeViewStart(liveIdx, vs0);
+    viewStart = floatVS;
+
+    render(floatIdx, floatVS, false);
+    if (liveIdx !== activeIdx) {
+      setActive(liveIdx);
+      showSection(liveIdx, true);
+    }
+    return true;
+  }
+
+  function dragEnd(cx) {
+    // Déverrouiller
+    isLocked = false;
+
+    if (!isDragging) {
+      // Tap simple → naviguer vers le tab touché
+      const el = document.elementFromPoint(cx, ty0)
+                          ?.closest('.lg-tab[data-section]');
+      if (el) {
+        const i = tabs.indexOf(el);
+        if (i !== -1) snapTo(i, true);
+      }
+      return;
+    }
+
+    isDragging = false;
+    const dx = cx - tx0;
+    // Snap vers le tab le plus proche
+    const floatIdx = ai0 + dx / TW();
+    snapTo(floatIdx, true);
+  }
+
+  /* ── Touch events — sur le NAV entier pour capturer partout ── */
+  nav.addEventListener('touchstart',
+    e => dragStart(e.touches[0].clientX, e.touches[0].clientY),
+    { passive: true });
+
+  nav.addEventListener('touchmove', e => {
+    const captured = dragMove(e.touches[0].clientX, e.touches[0].clientY);
+    if (captured) e.preventDefault();
+  }, { passive: false });
+
+  nav.addEventListener('touchend',
+    e => dragEnd(e.changedTouches[0].clientX),
+    { passive: true });
+
+  /* ── Mouse events ── */
+  let mouseHeld = false;
+  nav.addEventListener('mousedown', e => {
+    mouseHeld = true;
+    dragStart(e.clientX, e.clientY);
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', e => {
+    if (mouseHeld) dragMove(e.clientX, e.clientY);
+  });
+  window.addEventListener('mouseup', e => {
+    if (!mouseHeld) return;
+    mouseHeld = false;
+    dragEnd(e.clientX);
+  });
+
+  /* ── Synchronisation avec le scroll de la page ── */
+  document.querySelectorAll('section[id]').forEach(sec => {
+    new IntersectionObserver(entries => {
+      if (!entries[0].isIntersecting) return;
+      const i = tabs.findIndex(t => t.dataset.section === sec.id);
+      if (i !== -1 && i !== activeIdx) snapTo(i, true);
+    }, { rootMargin: '-38% 0px -58% 0px' }).observe(sec);
+  });
+
+  /* ── Resize ── */
+  window.addEventListener('resize', () => snapTo(activeIdx, false), { passive: true });
+
+  /* ── Keyboard avoidance ── */
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+      const shrunk = window.visualViewport.height < window.innerHeight * 0.72;
+      nav.classList.toggle('kb-hidden', shrunk);
+    });
+  }
+
+  /* ── Init : init sans animation, bulle sur About au démarrage ── */
+  requestAnimationFrame(() => {
+    const initialVS = computeViewStart(activeIdx, viewStart);
+    viewStart = initialVS;
+    render(activeIdx, initialVS, false);
+    setActive(activeIdx);
+    showSection(activeIdx, true);
+  });
+
+})();
