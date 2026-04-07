@@ -276,18 +276,29 @@ filterBtns.forEach(btn => {
 const contactForm = document.getElementById('contactForm');
 
 if (window.emailjs) {
-  emailjs.init('YOUR_EMAILJS_PUBLIC_KEY');
+  emailjs.init('zNY6DfPspNqEMTqdu');
 }
 
 contactForm?.addEventListener('submit', e => {
   e.preventDefault();
+
+  // Inject current time for template {{time}} variable
+  let timeInput = contactForm.querySelector('input[name="time"]');
+  if (!timeInput) {
+    timeInput = document.createElement('input');
+    timeInput.type = 'hidden';
+    timeInput.name = 'time';
+    contactForm.appendChild(timeInput);
+  }
+  timeInput.value = new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+
   const btn = contactForm.querySelector('button[type="submit"]');
   btn.disabled = true;
   const originalText = btn.textContent;
   btn.textContent = 'Sending...';
 
   if (window.emailjs) {
-    emailjs.sendForm('YOUR_EMAILJS_SERVICE_ID', 'YOUR_EMAILJS_TEMPLATE_ID', contactForm)
+    emailjs.sendForm('service_q6dctvo', 'template_46s53zc', contactForm)
       .then(() => {
         btn.textContent = '✓ Message sent!';
         btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
