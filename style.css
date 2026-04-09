@@ -886,21 +886,47 @@ body.light .header.scrolled { background: rgba(240,240,255,0.95); }
 .rk-profile { margin: auto; }
 
 /* Draw-on stroke animation */
+/* Tous les traits : état initial = invisible */
 .rk-s {
   stroke-dasharray: 120;
   stroke-dashoffset: 120;
+}
+
+/* Header logo : s'anime au chargement de la page */
+.header .rk-s {
   animation: rkDraw 0.7s cubic-bezier(0.4,0,0.2,1) forwards;
 }
-.rk-s1, .rk-ps1, .rk-fs1 { animation-delay: 0.05s; }
-.rk-s2, .rk-ps2, .rk-fs2 { animation-delay: 0.2s; }
-.rk-s3, .rk-ps3, .rk-fs3 { animation-delay: 0.4s; }
-.rk-s4, .rk-ps4, .rk-fs4 { animation-delay: 0.55s; }
-.rk-s5, .rk-ps5, .rk-fs5 { animation-delay: 0.7s; }
-.rk-s6, .rk-ps6, .rk-fs6 { animation-delay: 0.8s; }
+.header .rk-s1 { animation-delay: 0.05s; }
+.header .rk-s2 { animation-delay: 0.2s; }
+.header .rk-s3 { animation-delay: 0.4s; }
+.header .rk-s4 { animation-delay: 0.55s; }
+.header .rk-s5 { animation-delay: 0.7s; }
+.header .rk-s6 { animation-delay: 0.8s; }
 
+/* Footer logo : s'anime uniquement quand JS ajoute la classe 'rk-animate' */
+.footer .rk-animate .rk-s {
+  animation: rkDraw 0.7s cubic-bezier(0.4,0,0.2,1) forwards;
+}
+.footer .rk-animate .rk-fs1 { animation-delay: 0.05s; }
+.footer .rk-animate .rk-fs2 { animation-delay: 0.2s; }
+.footer .rk-animate .rk-fs3 { animation-delay: 0.4s; }
+.footer .rk-animate .rk-fs4 { animation-delay: 0.55s; }
+.footer .rk-animate .rk-fs5 { animation-delay: 0.7s; }
+.footer .rk-animate .rk-fs6 { animation-delay: 0.8s; }
+
+/* Point du logo */
 .rk-dot {
   opacity: 0;
   transform-origin: 52px 34px;
+}
+
+/* Header dot : au chargement */
+.header .rk-dot {
+  animation: rkPop 0.35s ease forwards 1.0s;
+}
+
+/* Footer dot : au scroll */
+.footer .rk-animate .rk-dot {
   animation: rkPop 0.35s ease forwards 1.0s;
 }
 

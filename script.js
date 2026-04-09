@@ -1,4 +1,4 @@
-/* ===== PORTFOLIO SCRIPT — ===== */
+/* ===== PORTFOLIO SCRIPT ===== */
 
 // ── THEME ──
 const THEME_KEY = 'fns-theme';
@@ -64,7 +64,7 @@ window.addEventListener('scroll', () => {
 const sections = document.querySelectorAll('section[id]');
 const navLinks = document.querySelectorAll('.nav-link');
 
-const observer = new IntersectionObserver(entries => {
+const navObserver = new IntersectionObserver(entries => {
   entries.forEach(entry => {
     if (entry.isIntersecting) {
       navLinks.forEach(link => {
@@ -74,7 +74,7 @@ const observer = new IntersectionObserver(entries => {
   });
 }, { rootMargin: '-40% 0px -55% 0px' });
 
-sections.forEach(s => observer.observe(s));
+sections.forEach(s => navObserver.observe(s));
 
 // ── CURSOR ──
 const cursor = document.getElementById('cursor');
@@ -84,27 +84,33 @@ let cx = 0, cy = 0;
 
 document.addEventListener('mousemove', e => {
   mx = e.clientX; my = e.clientY;
-  cursorDot.style.left = mx + 'px';
-  cursorDot.style.top  = my + 'px';
+  if (cursorDot) {
+    cursorDot.style.left = mx + 'px';
+    cursorDot.style.top  = my + 'px';
+  }
 }, { passive: true });
 
 function animateCursor() {
   cx += (mx - cx) * 0.12;
   cy += (my - cy) * 0.12;
-  cursor.style.left = cx + 'px';
-  cursor.style.top  = cy + 'px';
+  if (cursor) {
+    cursor.style.left = cx + 'px';
+    cursor.style.top  = cy + 'px';
+  }
   requestAnimationFrame(animateCursor);
 }
 animateCursor();
 
 document.querySelectorAll('a, button, .tech-pill, .filter-btn, .project-card, .cert-card[data-link]').forEach(el => {
   el.addEventListener('mouseenter', () => {
+    if (!cursor) return;
     cursor.style.width = '48px';
     cursor.style.height = '48px';
     cursor.style.borderColor = 'var(--neon)';
     cursor.style.background = 'rgba(0,245,255,0.05)';
   });
   el.addEventListener('mouseleave', () => {
+    if (!cursor) return;
     cursor.style.width = '32px';
     cursor.style.height = '32px';
     cursor.style.background = 'transparent';
@@ -114,11 +120,8 @@ document.querySelectorAll('a, button, .tech-pill, .filter-btn, .project-card, .c
 document.querySelectorAll('.cert-card[data-link]').forEach(card => {
   const openLink = () => {
     const url = card.dataset.link;
-    if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    }
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
   };
-
   card.addEventListener('click', openLink);
   card.addEventListener('keydown', e => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -129,33 +132,41 @@ document.querySelectorAll('.cert-card[data-link]').forEach(card => {
 });
 
 // ── REVEAL ON SCROLL ──
+// Le delay est calculé par SECTION, pas par index global.
+// Ainsi chaque groupe d'éléments visibles ensemble s'anime en cascade,
+// sans délai cumulatif absurde pour les sections éloignées.
+
 const revealEls = document.querySelectorAll('.reveal');
+
+// Assigner un index LOCAL à chaque élément .reveal dans sa section parente
+revealEls.forEach(el => {
+  const parentSection = el.closest('section') || el.closest('.container') || el.parentElement;
+  if (!parentSection._revealCounter) parentSection._revealCounter = 0;
+  el.dataset.delay = parentSection._revealCounter * 80;
+  parentSection._revealCounter++;
+});
 
 const revealObserver = new IntersectionObserver(entries => {
   entries.forEach(entry => {
     if (entry.isIntersecting) {
-      const delay = entry.target.dataset.delay || 0;
+      const delay = parseInt(entry.target.dataset.delay) || 0;
       setTimeout(() => {
         entry.target.classList.add('visible');
-        // Animate skill bars
-        const fills = entry.target.querySelectorAll('.bar-fill');
-        fills.forEach(fill => {
+        // Animer les barres de compétences si présentes dans cet élément
+        entry.target.querySelectorAll('.bar-fill').forEach(fill => {
           fill.style.width = fill.dataset.w + '%';
         });
       }, delay);
-      revealObserver.unobserve(entry.target);
+      revealObserver.unobserve(entry.target); // Une seule fois, pas de boucle
     }
   });
 }, { threshold: 0.12 });
 
-revealEls.forEach((el, i) => {
-  el.dataset.delay = (i % 4) * 80;
-  revealObserver.observe(el);
-});
+revealEls.forEach(el => revealObserver.observe(el));
 
+// ── COMPTEURS STATS ──
 function animateStatCounters() {
-  const statEls = document.querySelectorAll('.num-value');
-  statEls.forEach(el => {
+  document.querySelectorAll('.num-value').forEach(el => {
     const target = parseInt(el.dataset.target, 10) || 0;
     if (target <= 0 || el.dataset.animated === 'true') return;
     el.dataset.animated = 'true';
@@ -182,22 +193,25 @@ if (aboutStats) {
   const statsObserver = new IntersectionObserver(entries => {
     if (entries[0].isIntersecting) {
       animateStatCounters();
-      statsObserver.unobserve(entries[0].target);
+      statsObserver.unobserve(entries[0].target); // Une seule fois
     }
   }, { threshold: 0.25 });
   statsObserver.observe(aboutStats);
 }
 
-// Also trigger skill bars when skill section is in view
+// ── BARRES DE COMPÉTENCES ──
 const skillSection = document.getElementById('skills');
-const skillObserver = new IntersectionObserver(entries => {
-  if (entries[0].isIntersecting) {
-    document.querySelectorAll('.bar-fill').forEach(fill => {
-      fill.style.width = fill.dataset.w + '%';
-    });
-  }
-}, { threshold: 0.1 });
-if (skillSection) skillObserver.observe(skillSection);
+if (skillSection) {
+  const skillObserver = new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting) {
+      document.querySelectorAll('.bar-fill').forEach(fill => {
+        fill.style.width = fill.dataset.w + '%';
+      });
+      skillObserver.unobserve(entries[0].target); // Une seule fois
+    }
+  }, { threshold: 0.1 });
+  skillObserver.observe(skillSection);
+}
 
 // ── TYPED TEXT ──
 const typedEl = document.getElementById('typedText');
@@ -233,9 +247,8 @@ if (canvas) {
   function resizeCanvas() {
     W = canvas.width = canvas.offsetWidth;
     H = canvas.height = canvas.offsetHeight;
+    drawGrid();
   }
-  resizeCanvas();
-  window.addEventListener('resize', resizeCanvas, { passive: true });
 
   function drawGrid() {
     ctx.clearRect(0, 0, W, H);
@@ -249,8 +262,9 @@ if (canvas) {
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
     }
   }
-  drawGrid();
-  window.addEventListener('resize', drawGrid, { passive: true });
+
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas, { passive: true });
 }
 
 // ── PROJECT FILTER ──
@@ -265,23 +279,21 @@ filterBtns.forEach(btn => {
     projectCards.forEach(card => {
       const match = filter === 'all' || card.dataset.cat === filter;
       card.style.display = match ? '' : 'none';
-      if (match) {
-        card.style.animation = 'fadeIn 0.3s ease forwards';
-      }
+      if (match) card.style.animation = 'fadeIn 0.3s ease forwards';
     });
   });
 });
 
-// ── CONTACT FORM ──
+// ── CONTACT FORM + EMAILJS ──
 const contactForm = document.getElementById('contactForm');
 
-  // Attendre que la page soit complètement chargée
-  window.addEventListener('load', () => {
+// EmailJS : init après chargement complet de la page
+window.addEventListener('load', () => {
   if (typeof emailjs !== 'undefined') {
     emailjs.init({ publicKey: 'zNY6DfPspNqEMTqdu' });
     console.log('✅ EmailJS initialisé');
   } else {
-    console.error('❌ EmailJS non chargé');
+    console.error('❌ EmailJS non chargé — vérifie le script dans <head>');
   }
 });
 
@@ -293,7 +305,7 @@ contactForm?.addEventListener('submit', e => {
     return;
   }
 
-  // Inject current time
+  // Injecter l'heure pour la variable {{time}} dans le template
   let timeInput = contactForm.querySelector('input[name="time"]');
   if (!timeInput) {
     timeInput = document.createElement('input');
@@ -314,7 +326,7 @@ contactForm?.addEventListener('submit', e => {
       btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
       contactForm.reset();
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('EmailJS error:', error);
       btn.textContent = 'Échec. Réessaie';
       btn.style.background = 'linear-gradient(135deg, #f97316, #dc2626)';
@@ -327,6 +339,19 @@ contactForm?.addEventListener('submit', e => {
       }, 3000);
     });
 });
+
+// ── FOOTER LOGO ANIMATION ──
+// Le logo RK du footer s'anime une seule fois quand le footer devient visible
+const footerLogo = document.querySelector('.footer .rk-logo-svg');
+if (footerLogo) {
+  const footerLogoObserver = new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting) {
+      footerLogo.classList.add('rk-animate');
+      footerLogoObserver.unobserve(entries[0].target); // une seule fois
+    }
+  }, { threshold: 0.5 });
+  footerLogoObserver.observe(footerLogo);
+}
 
 // ── SMOOTH SCROLL ──
 document.querySelectorAll('a[href^="#"]').forEach(a => {
